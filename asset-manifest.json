@@ -1,13 +1,13 @@
 {
   "files": {
     "main.css": "/avant-garde_manifestos/static/css/main.49c9de4c.css",
-    "main.js": "/avant-garde_manifestos/static/js/main.8f25564f.js",
+    "main.js": "/avant-garde_manifestos/static/js/main.cb53f7f9.js",
     "index.html": "/avant-garde_manifestos/index.html",
     "main.49c9de4c.css.map": "/avant-garde_manifestos/static/css/main.49c9de4c.css.map",
-    "main.8f25564f.js.map": "/avant-garde_manifestos/static/js/main.8f25564f.js.map"
+    "main.cb53f7f9.js.map": "/avant-garde_manifestos/static/js/main.cb53f7f9.js.map"
   },
   "entrypoints": [
     "static/css/main.49c9de4c.css",
-    "static/js/main.8f25564f.js"
+    "static/js/main.cb53f7f9.js"
   ]
 }
