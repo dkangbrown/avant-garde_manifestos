@@ -32,6 +32,8 @@ export default function GridTextBuilder() {
   const [cells, setCells] = useState<Record<string, FixedCell>>({});
   const [suggestions, setSuggestions] = useState<SuggestionCell[]>([]);
   const [inputValue, setInputValue] = useState("");
+  const [chosenText, setChosenText] = useState("<|begin_of_text|><|start_header_id|>system<|end_header_id|>\nYou are an Avant-Garde artist, one of the Cubists, Futurists, Orphists, Dadaists, or Surrealists who believe modernity has changed what it means to be an artist\
+    and what it means to be human. You create art that is innovative, experimental, and pushes the boundaries of established artistic norms.<|eot_id|><|start_header_id|>user<|end_header_id|>\nWrite me an Avant-Garde manifesto.<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n");
   const [stage, setStage] = useState<"initial" | "running" | "done">("initial");
 
   /* Keep track of grid size so the scrollable canvas expands */
@@ -41,8 +43,31 @@ export default function GridTextBuilder() {
   /* ------------------------- backend hooks ------------------------- */
   async function fetchSuggestionsFromBackend(word: string): Promise<string[]> {
     // 🔗 Replace with your real API call (e.g., /api/suggest?seed=word)
-    // For now we return dummy content so the UI is fully functional standalone.
-    return ["alpha", "beta", "gamma"].map((w, i) => `${w}_${Date.now().toString(36).slice(-3)}${i}`);
+    const completion = await fetch("https://api.fireworks.ai/inference/v1/completions", {
+      method: "POST",
+      headers: {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "Authorization": "Bearer fw_3ZSSPjwsMnXbzxaua7fFxrN6"
+      },
+      body: JSON.stringify({
+        model: "accounts/dongyoon-kang-a70308/deployedModels/ft-avart-garde-v2-prompt-yytv2pwt",
+        max_tokens: 1,
+        logprobs: 3,
+        top_p: 1,
+        top_k: 40,
+        presence_penalty: 0,
+        frequency_penalty: 0,
+        temperature: 0.5,
+        prompt: chosenText
+      })
+    });
+
+    // decode and return the top 3 suggestions
+    const completionJSON = await completion.json();
+    console.log(completionJSON);
+    const options =  completionJSON.choices[0].logprobs.top_logprobs[0];
+    return options.keys();
   }
 
   async function postGridToBackend() {
@@ -59,6 +84,7 @@ export default function GridTextBuilder() {
 
   function addFixedCell(row: number, col: number, word: string) {
     setCells((prev) => ({ ...prev, [key(row, col)]: { row, col, word } }));
+    setChosenText(chosenText + word);
     maxRow.current = Math.max(maxRow.current, row);
     maxCol.current = Math.max(maxCol.current, col);
   }
@@ -79,6 +105,7 @@ export default function GridTextBuilder() {
   async function handleInitialSubmit() {
     if (!inputValue.trim()) return;
     addFixedCell(0, 0, inputValue.trim());
+    setChosenText(chosenText + inputValue.trim());
     await placeSuggestions(0, 0, inputValue.trim());
     setStage("running");
     setInputValue("");
@@ -116,9 +143,9 @@ export default function GridTextBuilder() {
         {Object.values(cells).map(({ row, col, word }) => (
           <Card
             key={key(row, col)}
-            style={{ border: "solid", position: "absolute", left: col * CELL_SIZE, top: row * CELL_SIZE, width: CELL_SIZE, height: CELL_SIZE }}
+            style={{ position: "absolute", left: col * CELL_SIZE, top: row * CELL_SIZE, width: CELL_SIZE, height: CELL_SIZE }}
           >
-            <CardContent className="flex items-center justify-center w-full h-full p-2 text-center text-base">
+            <CardContent style={{display: "flex", justifyContent: "center", width: "full", height: "full", alignItems: "center"}}>
               {word}
             </CardContent>
           </Card>
@@ -130,9 +157,9 @@ export default function GridTextBuilder() {
             key={`s-${i}`}
             onClick={() => handleSuggestionClick(s)}
             className="absolute cursor-pointer transition-colors hover:bg-muted/50"
-            style={{ left: s.col * CELL_SIZE, top: s.row * CELL_SIZE, width: CELL_SIZE, height: CELL_SIZE }}
+            style={{ border: "solid", position: "absolute",  left: s.col * CELL_SIZE, top: s.row * CELL_SIZE, width: CELL_SIZE, height: CELL_SIZE }}
           >
-            <CardContent className="flex items-center justify-center w-full h-full p-2 text-center text-base">
+            <CardContent style={{display: "flex", justifyContent: "center", width: "full", height: "full", alignItems: "center"}}>
               {s.word}
             </CardContent>
           </Card>
@@ -141,7 +168,7 @@ export default function GridTextBuilder() {
 
       {/* first‑word overlay */}
       {stage === "initial" && (
-        <div className="absolute top-4 left-4 z-50 flex gap-2">
+        <div style={{ position: "absolute", top: 4, left: 4, display: "flex", gap: 2 }}>
           <input
             value={inputValue}
             placeholder="Type first word …"
@@ -149,7 +176,7 @@ export default function GridTextBuilder() {
             onKeyDown={(e) => {
               if (e.key === "Enter") void handleInitialSubmit();
             }}
-            className="border rounded px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            style={{display: "flex", justifyContent: "center", width: "full", height: "full", alignItems: "center"}}
           />
           {/* <Button onClick={handleInitialSubmit}>Start</Button> */}
         </div>
