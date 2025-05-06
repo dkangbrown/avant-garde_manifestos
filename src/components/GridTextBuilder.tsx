@@ -1,34 +1,52 @@
-import React, { useState, useRef, KeyboardEvent } from "react";
+import React, { useState, useRef, useEffect, KeyboardEvent } from "react";
 import Button from "./ui/Button";
 import { Card, CardContent } from "./ui/Card";
 
-const CELL_SIZE = 140; // px
+/**
+ * Grid‑based text‑building UI
+ * -----------------------------------------------------
+ * ‣ The user types the first word, which is fixed at (0,0).
+ * ‣ Three backend suggestions appear at (0,1), (1,0), (1,1).
+ * ‣ The user clicks one; it is fixed and becomes the next anchor.
+ * ‣ Loop until the user presses Enter → POST full grid to backend.
+ *
+ * Visual implementation notes
+ * ---------------------------
+ * • Each cell is rendered as a <Card> positioned absolutely inside a large scrollable canvas.
+ * • The canvas grows automatically based on the maximum row / column reached.
+ * • Suggestions are visually distinguished by a hover style & pointer cursor.
+ */
 
-interface Cell {
+const CELL_SIZE = 140; // px – adjust to taste
+
+interface FixedCell {
   word: string;
   row: number;
   col: number;
 }
 
+interface SuggestionCell extends FixedCell {}
+
 export default function GridTextBuilder() {
-  const [cells, setCells] = useState<Record<string, Cell>>({});
-  const [suggestions, setSuggestions] = useState<Cell[]>([]);
+  /* ----------------------------- state ----------------------------- */
+  const [cells, setCells] = useState<Record<string, FixedCell>>({});
+  const [suggestions, setSuggestions] = useState<SuggestionCell[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [stage, setStage] = useState<"initial" | "running" | "done">("initial");
 
+  /* Keep track of grid size so the scrollable canvas expands */
   const maxRow = useRef(0);
   const maxCol = useRef(0);
 
-  const key = (r: number, c: number) => `${r},${c}`;
-
-  /* ---------------- Backend stubs ---------------- */
-  async function fetchSuggestions(seed: string): Promise<string[]> {
-    // TODO: replace with real API call
-    return ["alpha", "beta", "gamma"].map((w, i) => `${w}-${Date.now().toString(36).slice(-2)}${i}`);
+  /* ------------------------- backend hooks ------------------------- */
+  async function fetchSuggestionsFromBackend(word: string): Promise<string[]> {
+    // 🔗 Replace with your real API call (e.g., /api/suggest?seed=word)
+    // For now we return dummy content so the UI is fully functional standalone.
+    return ["lorem", "ipsum", "dolor"].map((w, i) => `${w}_${Date.now().toString(36).slice(-3)}${i}`);
   }
 
-  async function postGrid() {
-    const payload = Object.values(cells);
+  async function postGridToBackend() {
+    const payload = Object.values(cells).map(({ word, row, col }) => ({ word, row, col }));
     await fetch("/api/submit", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -36,35 +54,37 @@ export default function GridTextBuilder() {
     });
   }
 
-  /* ---------------- Helpers ---------------- */
+  /* ------------------------ helper utilities ----------------------- */
+  const key = (row: number, col: number) => `${row},${col}`;
+
   function addFixedCell(row: number, col: number, word: string) {
     setCells((prev) => ({ ...prev, [key(row, col)]: { row, col, word } }));
     maxRow.current = Math.max(maxRow.current, row);
     maxCol.current = Math.max(maxCol.current, col);
   }
 
-  async function placeSuggestions(baseRow: number, baseCol: number, anchor: string) {
-    const words = await fetchSuggestions(anchor);
+  async function placeSuggestions(baseRow: number, baseCol: number, anchorWord: string) {
+    const words = await fetchSuggestionsFromBackend(anchorWord);
     const coords = [
       { row: baseRow, col: baseCol + 1 },
       { row: baseRow + 1, col: baseCol },
       { row: baseRow + 1, col: baseCol + 1 },
     ];
-    setSuggestions(coords.map((c, i) => ({ ...c, word: words[i] })));
+    setSuggestions(coords.map((c, idx) => ({ ...c, word: words[idx] })));
     maxRow.current = Math.max(maxRow.current, baseRow + 1);
     maxCol.current = Math.max(maxCol.current, baseCol + 1);
   }
 
-  /* --------------- Event Handlers --------------- */
+  /* ---------------------------- events ----------------------------- */
   async function handleInitialSubmit() {
     if (!inputValue.trim()) return;
     addFixedCell(0, 0, inputValue.trim());
     await placeSuggestions(0, 0, inputValue.trim());
-    setInputValue("");
     setStage("running");
+    setInputValue("");
   }
 
-  async function handleSuggestionClick(s: Cell) {
+  async function handleSuggestionClick(s: SuggestionCell) {
     addFixedCell(s.row, s.col, s.word);
     await placeSuggestions(s.row, s.col, s.word);
   }
@@ -72,80 +92,74 @@ export default function GridTextBuilder() {
   function handleGlobalKey(e: KeyboardEvent<HTMLDivElement>) {
     if (stage === "running" && e.key === "Enter") {
       setStage("done");
-      void postGrid();
+      void postGridToBackend();
     }
   }
 
-  /* --------------- Render --------------- */
-  const canvasStyle: React.CSSProperties = {
+  /* --------------------------- UI layout --------------------------- */
+  const canvasStyle = {
     width: (maxCol.current + 3) * CELL_SIZE,
     height: (maxRow.current + 3) * CELL_SIZE,
-  };
+  } as const;
 
   return (
     <div
-      className="w-screen h-screen overflow-scroll bg-white"
+      className="w-screen h-screen overflow-scroll bg-white select-none"
       tabIndex={0}
       onKeyDown={handleGlobalKey}
     >
-      {/* Grid canvas */}
+      {/* scrollable canvas */}
       <div className="relative" style={canvasStyle}>
-        {/* Fixed cells */}
+        {/* fixed words */}
         {Object.values(cells).map(({ row, col, word }) => (
           <Card
             key={key(row, col)}
-            style={{
-              left: col * CELL_SIZE,
-              top: row * CELL_SIZE,
-              width: CELL_SIZE,
-              height: CELL_SIZE,
-            }}
-            className="absolute pointer-events-none flex items-center justify-center text-center p-2"
+            className="absolute pointer-events-none"
+            style={{ left: col * CELL_SIZE, top: row * CELL_SIZE, width: CELL_SIZE, height: CELL_SIZE }}
           >
-            <CardContent>{word}</CardContent>
+            <CardContent className="flex items-center justify-center w-full h-full p-2 text-center text-base">
+              {word}
+            </CardContent>
           </Card>
         ))}
 
-        {/* Suggestions */}
+        {/* clickable suggestions */}
         {suggestions.map((s, i) => (
           <Card
             key={`s-${i}`}
             onClick={() => handleSuggestionClick(s)}
-            style={{
-              left: s.col * CELL_SIZE,
-              top: s.row * CELL_SIZE,
-              width: CELL_SIZE,
-              height: CELL_SIZE,
-            }}
-            className="absolute cursor-pointer hover:bg-gray-100 flex items-center justify-center text-center p-2 transition-colors"
+            className="absolute cursor-pointer transition-colors hover:bg-muted/50"
+            style={{ left: s.col * CELL_SIZE, top: s.row * CELL_SIZE, width: CELL_SIZE, height: CELL_SIZE }}
           >
-            <CardContent>{s.word}</CardContent>
+            <CardContent className="flex items-center justify-center w-full h-full p-2 text-center text-base">
+              {s.word}
+            </CardContent>
           </Card>
         ))}
       </div>
 
-      {/* First‑word overlay */}
+      {/* first‑word overlay */}
       {stage === "initial" && (
-        <div className="absolute top-4 left-4 z-10 flex gap-2">
+        <div className="absolute top-4 left-4 z-50 flex gap-2">
           <input
-            className="border rounded px-3 py-2 shadow focus:outline-none focus:ring"
-            placeholder="First word…"
             value={inputValue}
+            placeholder="Type first word …"
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter") void handleInitialSubmit();
             }}
+            className="border rounded px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary"
           />
-          <Button onClick={handleInitialSubmit}>Start</Button>
+          {/* <Button onClick={handleInitialSubmit}>Start</Button> */}
         </div>
       )}
 
-      {/* Finish button */}
+      {/* finish button */}
       {stage === "running" && (
         <Button
           onClick={() => {
             setStage("done");
-            void postGrid();
+            void postGridToBackend();
           }}
           className="fixed bottom-5 right-5"
         >
