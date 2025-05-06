@@ -100,6 +100,8 @@ export default function GridTextBuilder() {
   const canvasStyle = {
     width: (maxCol.current + 3) * CELL_SIZE,
     height: (maxRow.current + 3) * CELL_SIZE,
+    overflow: "auto",
+    position: "relative"
   } as const;
 
   return (
@@ -114,7 +116,6 @@ export default function GridTextBuilder() {
         {Object.values(cells).map(({ row, col, word }) => (
           <Card
             key={key(row, col)}
-            className="absolute pointer-events-none"
             style={{ left: col * CELL_SIZE, top: row * CELL_SIZE, width: CELL_SIZE, height: CELL_SIZE }}
           >
             <CardContent className="flex items-center justify-center w-full h-full p-2 text-center text-base">
