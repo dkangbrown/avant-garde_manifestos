@@ -42,7 +42,7 @@ export default function GridTextBuilder() {
   async function fetchSuggestionsFromBackend(word: string): Promise<string[]> {
     // 🔗 Replace with your real API call (e.g., /api/suggest?seed=word)
     // For now we return dummy content so the UI is fully functional standalone.
-    return ["lorem", "ipsum", "dolor"].map((w, i) => `${w}_${Date.now().toString(36).slice(-3)}${i}`);
+    return ["alpha", "beta", "gamma"].map((w, i) => `${w}_${Date.now().toString(36).slice(-3)}${i}`);
   }
 
   async function postGridToBackend() {
@@ -116,7 +116,7 @@ export default function GridTextBuilder() {
         {Object.values(cells).map(({ row, col, word }) => (
           <Card
             key={key(row, col)}
-            style={{ left: col * CELL_SIZE, top: row * CELL_SIZE, width: CELL_SIZE, height: CELL_SIZE }}
+            style={{ border: "solid", position: "absolute", left: col * CELL_SIZE, top: row * CELL_SIZE, width: CELL_SIZE, height: CELL_SIZE }}
           >
             <CardContent className="flex items-center justify-center w-full h-full p-2 text-center text-base">
               {word}

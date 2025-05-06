@@ -11,12 +11,12 @@ body {
   
   /* Scrollbar visibility for large canvas */
   html, body {
-    overflow: hidden;
+    overflow: auto;
   }
   
   #root {
     width: 100vw;
     height: 100vh;
-    overflow: hidden;
+    overflow: auto;
   }
   
